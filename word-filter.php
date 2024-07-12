@@ -17,7 +17,16 @@ class OurWordFilterPlugin
 {
     function __construct()
     {
+        add_action("admin_init", array($this, "ourSettings"));
         add_action("admin_menu", array($this, "ourMenu"));
+        if (get_option('plugin-words-to-filter')) add_action("the_content", array($this,"filter_logic"));
+    }
+
+    function filter_logic($content)
+    {
+        $bad_words = explode(",", get_option("plugin-words-to-filter"));
+        $bad_words_trimmed = array_map("trim", $bad_words);
+        return str_ireplace($bad_words_trimmed,esc_html(get_option("replacementText", "***")), $content);
     }
 
     function ourMenu()
@@ -51,6 +60,13 @@ class OurWordFilterPlugin
         );
 
         add_action("load-$name_age_hook", array($this, "main_page_assets"));
+    }
+
+    function ourSettings()
+    {
+        add_settings_section("replacement-text-section", null, null, "word-filter-options");
+        register_setting("replacementFields", "replacementText");
+        add_settings_field("replacement-text", "Filtered text", array($this, "replacement_field_html"), "word-filter-options", "replacement-text-section");
     }
 
     function word_filter_page()
@@ -95,13 +111,31 @@ class OurWordFilterPlugin
 
     function options_sub_page()
     { ?>
-        Hello Word
+        <div class="wrap">
+            <h1>Word Filter Options</h1>
+
+            <form action="options.php" method="POST">
+                <?php
+                settings_errors();
+                settings_fields("replacementFields");
+                do_settings_sections("word-filter-options");
+                submit_button();
+                ?>
+            </form>
+        </div>
     <?php }
 
     function main_page_assets()
     {
         wp_enqueue_style('filter-admin-css', plugins_url('/styles.css', __FILE__));
     }
+
+    function replacement_field_html()
+    { ?>
+        <input type="text" name="replacementText" value="<?php echo esc_attr(get_option('replacementText', '***')) ?>">
+
+        <p class="description">Leave blank to simply remove the words.</p>
+    <?php }
 }
 
 $outWordFilterPlugin = new OurWordFilterPlugin();
